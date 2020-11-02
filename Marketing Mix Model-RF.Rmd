@@ -1,0 +1,129 @@
+---
+title: "Marketing Mix Model-RF"
+output: html_notebook
+---
+
+```{r}
+AF=read.csv('/Users/chloe/Desktop/bootcamp/MMM/Data/AF_Final.csv')
+colnames(AF)[1] = 'Period'
+
+ext=read.csv('/Users/chloe/Downloads/Externnal Factors Sample.csv')
+rep=rep(ext[,'Unemployment.Rate'],each=5)
+AF=cbind(AF,rep[1:208])
+names(AF)[28]="Unem"
+
+AF$Period = as.Date(AF$Period, '%m/%d/%Y')
+
+plot(AF$Period, AF$Sales, type='l')
+
+#create some baseline variable
+AF$Black_Friday = 0
+AF[,'Black_Friday'] = 0  #another way
+AF[which(AF$Period=='2014-11-24'),'Black_Friday'] = 1
+AF[which(AF$Period=='2015-11-30'),'Black_Friday'] = 1
+AF[which(AF$Period=='2016-11-28'),'Black_Friday'] = 1
+AF[which(AF$Period=='2017-11-27'),'Black_Friday'] = 1
+sum(AF$Black_Friday) #check 4 spikes
+
+AF$July_4th = 0
+AF[,'July_4th'] = 0  #another way
+AF[which(AF$Period=='2014-07-07'),'July_4th'] = 1
+AF[which(AF$Period=='2015-07-06'),'July_4th'] = 1
+AF[which(AF$Period=='2016-07-04'),'July_4th'] = 1
+AF[which(AF$Period=='2017-07-03'),'July_4th'] = 1
+sum(AF$July_4th) #check 4 spikes
+```
+```{r}
+ind=sample(2,nrow(AF),replace=T,prob=c(.7,.3))
+train=AF[ind==1,]
+test=AF[ind==2,]
+```
+
+
+
+```{r}
+head(AF)
+head(train)
+```
+
+
+```{r}
+#Randome Forest
+library(randomForest)
+set.seed(54)
+rf=randomForest(Sales~.,data=train,importance=TRUE,proximity= TRUE)
+print(rf)
+plot(rf)
+
+rf1_test=predict(rf,newdata = test)
+rf1.resid=rf1_test-test$Sales
+MSE1=mean(rf1.resid^2)
+```
+```{r}
+rf1_test=predict(rf,newdata = test)
+rf1.resid=rf1_test-test$Sales
+MSE1=mean(rf1.resid^2)
+MSE1
+```
+
+```{r}
+set.seed(54)
+which.min(rf$mse)
+
+rf1=randomForest(Sales~.,data=train,importance=TRUE,proximity= TRUE,ntree=182)
+print(rf1)
+
+
+```
+
+```{r}
+varImpPlot(rf1)
+```
+```{r}
+set.seed(54)
+mtry = tuneRF(train[-18],train$Sales, ntreeTry=182,
+               stepFactor=1.5,improve=0.01, trace=TRUE, plot=TRUE)
+best.m=mtry[mtry[, 2] == min(mtry[, 2]), 1]
+```
+```{r}
+set.seed(54)
+rfb=randomForest(Sales~.,data=train,mtry=best.m,importance=TRUE,proximity= TRUE,ntree=182)
+print(rfb)
+```
+
+
+```{r}
+varImpPlot(rfb)
+importance(rfb)
+
+```
+
+```{r}
+rf_test=predict(rfb,newdata = test)
+rf.resid=rf_test-test$Sales
+MSE=mean(rf.resid^2)
+MSE
+```
+```{r}
+lift=(MSE1-MSE)/MSE1
+lift
+```
+
+
+```{r}
+#Linear Regression 1
+lr1=lm(data = train, Sales~CCI+Sales.Event+July_4th+Black_Friday+NationalTV2+PaidSearch1+Wechat2+Magazine1+Display2+Facebook1,
+            x=TRUE)
+
+MSE_lr1=mean(rf.resid^2)
+MSE
+
+
+
+
+
+
+
+
+```
+
